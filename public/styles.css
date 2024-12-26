@@ -1,0 +1,68 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#main {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+#main .canvas-wrapper {
+  width: 100%;
+  flex-grow: 1;
+
+  /* min-height and min-width needs to set to zero otherwise the box won't
+   * resize to be smaller when the window shrinks */
+  min-height: 0;
+  min-width: 0;
+
+  /* needed for the overlay to be absolutely positioned relative to this div */
+  position: relative;
+}
+
+#main .canvas-wrapper .overlay {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 10;
+  background-color: rgba(0, 0, 0, 0.75);
+  font-size: 10px;
+  font-family: "Courier New", Courier, monospace;
+  padding: 2px 4px;
+  color: yellow;
+}
+
+#main .canvas-wrapper .overlay p {
+  line-height: 1;
+  margin: 3px 0;
+  padding: 0;
+}
+
+#main .canvas-wrapper canvas {
+  width: 100%;
+  height: 100%;
+  display: block; /* need this otherwise it doesn't size properly */
+}
+
+#main footer {
+  box-sizing: border-box;
+
+  width: 100%;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  text-align: center;
+
+  font-size: 10px;
+  font-family: "Courier New", Courier, monospace;
+  color: #777;
+}
