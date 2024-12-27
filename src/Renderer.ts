@@ -1,4 +1,5 @@
-import { type Camera, FixedCamera } from "./CameraControls.js";
+import { ArcballCamera } from "./camera/ArcballCamera.js";
+import type { Camera } from "./camera/types.js";
 import { STLModel } from "./stl/model.js";
 import type { STL } from "./stl/parser.js";
 import type { LightProperty } from "./types.js";
@@ -12,7 +13,7 @@ export class Renderer {
   #light: LightProperty;
   #stlModel?: STLModel;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, camera: Camera) {
     this.#canvas = canvas;
 
     const gl = this.#canvas.getContext("webgl2");
@@ -36,12 +37,7 @@ export class Renderer {
     });
 
     // Setup the camera
-    this.#camera = new FixedCamera(
-      new Float32Array([0, 0, 4]),
-      new Float32Array([0, 0, -1]),
-      new Float32Array([0, 1, 0]),
-      (45 * Math.PI) / 180,
-    );
+    this.#camera = camera;
 
     // Setup the light
     this.#light = {
@@ -72,7 +68,9 @@ export class Renderer {
     this.#stlModel = new STLModel(this.#gl, stl);
   }
 
-  #update(dt: number): void {}
+  #update(dt: number): void {
+    this.#camera.update(dt);
+  }
 
   #render(dt: number): void {
     const aspectRatio = this.#updateCanvasSize();

@@ -98,7 +98,7 @@ export class STL {
       vec3.normalize(n1, n1);
 
       if (vec3.sqrDist(n1, normal) > 0.1) {
-        console.warn(`triangle ${j} has invalid normal (${normal}) when calculate to be ${n1}`);
+        console.debug(`triangle ${j} has invalid normal (${normal}) when calculate to be ${n1}`);
       }
 
       // Don't need to set +3, +4, +5 because n1 already set it.

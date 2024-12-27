@@ -1,17 +1,5 @@
 import { mat4, type ReadonlyMat4, type ReadonlyVec3, vec3 } from "gl-matrix";
-
-/**
- * All methods return readonly vectors and matrices that are only valid until
- * the next time any methods are invoked on the camera.
- */
-export interface Camera {
-  position(): ReadonlyVec3;
-  perspectiveProjectionMatrix(aspectRatio: number, near: number, far: number): ReadonlyMat4;
-  cameraMatrix(): ReadonlyMat4;
-  fov(): number;
-
-  moveTo(position: ReadonlyVec3): ReadonlyVec3;
-}
+import type { Camera } from "./types.js";
 
 export class FixedCamera implements Camera {
   #position: vec3;
@@ -57,4 +45,43 @@ export class FixedCamera implements Camera {
     vec3.copy(this.#position, position);
     return this.#position;
   }
+}
+
+export class ArcballCamera implements Camera {
+  #position: vec3;
+  #target: vec3;
+  #up: vec3;
+  #fov: number;
+
+  #cameraMatrix: mat4 = mat4.create();
+  #projectionMatrix: mat4 = mat4.create();
+
+  constructor(position: vec3, target: vec3, up: vec3, fov: number) {
+    this.#position = position;
+    this.#target = target;
+    this.#up = up;
+    this.#fov = fov;
+  }
+
+  position(): ReadonlyVec3 {
+    return this.#position;
+  }
+
+  perspectiveProjectionMatrix(aspectRatio: number, near: number, far: number): ReadonlyMat4 {
+    return mat4.perspective(this.#projectionMatrix, this.#fov, aspectRatio, near, far);
+  }
+
+  cameraMatrix(): ReadonlyMat4 {
+    return mat4.lookAt(this.#cameraMatrix, this.#position, this.#target, this.#up);
+  }
+
+  fov(): number {
+    return this.#fov;
+  }
+
+  moveTo(position: ReadonlyVec3): ReadonlyVec3 {
+    return vec3.copy(this.#position, position);
+  }
+
+  update(dt: number): {};
 }
