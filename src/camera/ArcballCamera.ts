@@ -16,7 +16,7 @@ type AnimationAnimating = {
 
   angularVelocity: number;
 
-  axis: vec3;
+  rotationAxis: vec3;
   currentAngle: number;
   targetAngle: number;
 };
@@ -27,9 +27,28 @@ type AnimationPanning = {
 
 type AnimationRotating = {
   type: "rotating";
+
+  lastNormalizedCoordinates: vec3;
+  currentNormalizedCoordinates: vec3;
+
+  rotationAxis: vec3;
 };
 
 type Animation = AnimationAnimating | AnimationRotating | AnimationPanning;
+
+// basically some static variables for us to use.
+const temporaryQuat1 = quat.create();
+const temporaryPositionQuat = quat.create();
+
+function rotateWithQuat(out: vec3, p: vec3, q: quat): vec3 {
+  quat.invert(temporaryQuat1, q);
+  quat.set(temporaryPositionQuat, p[0], p[1], p[2], 0);
+
+  quat.multiply(temporaryQuat1, temporaryPositionQuat, temporaryQuat1);
+  quat.multiply(temporaryQuat1, q, temporaryQuat1);
+  vec3.set(out, temporaryQuat1[0], temporaryQuat1[1], temporaryQuat1[2]);
+  return out;
+}
 
 export class ArcballCamera implements Camera {
   #canvas: HTMLCanvasElement;
@@ -51,8 +70,6 @@ export class ArcballCamera implements Camera {
 
   // These are only used for the rotate function to compute temporary rotation.
   #rotation: quat = quat.create(); // The rotation quaternion q
-  #positionQuaternion: quat = quat.create(); // The position quaternion p constructed from the #position
-  #tempQuaternion: quat = quat.create(); // The temporary scratch space coming from pq(p^-1). Could probably be optimized.
 
   // Temporary variables to handle interactive rotation
   // ==================================================
@@ -66,7 +83,11 @@ export class ArcballCamera implements Camera {
     this.#up = up;
     this.#fov = fov;
 
-    this.#updateOrthonormalBasis();
+    vec3.subtract(this.#front, this.#target, this.#position);
+    vec3.normalize(this.#front, this.#front);
+
+    vec3.cross(this.#right, this.#front, this.#up);
+    vec3.normalize(this.#right, this.#right);
   }
 
   attachEventHandlers(): void {
@@ -112,9 +133,16 @@ export class ArcballCamera implements Camera {
     return this.#fov;
   }
 
-  moveTo(position: ReadonlyVec3): ReadonlyVec3 {
+  moveTo(position: ReadonlyVec3, up: ReadonlyVec3): ReadonlyVec3 {
     vec3.copy(this.#position, position);
-    this.#updateOrthonormalBasis();
+    vec3.copy(this.#up, up);
+
+    vec3.subtract(this.#front, this.#target, this.#position);
+    vec3.normalize(this.#front, this.#front);
+
+    vec3.cross(this.#right, this.#front, this.#up);
+    vec3.normalize(this.#right, this.#right);
+
     return this.#position;
   }
 
@@ -137,7 +165,7 @@ export class ArcballCamera implements Camera {
         const deltaAngle = this.#animation.angularVelocity * dt;
         this.#animation.currentAngle += deltaAngle;
 
-        this.rotate(this.#animation.axis, deltaAngle);
+        this.rotate(this.#animation.rotationAxis, deltaAngle);
         break;
       }
       case "panning":
@@ -151,17 +179,11 @@ export class ArcballCamera implements Camera {
 
   rotate(axis: ReadonlyVec3, theta: number): ReadonlyVec3 {
     quat.setAxisAngle(this.#rotation, axis, theta);
-    quat.set(this.#positionQuaternion, this.#position[0], this.#position[1], this.#position[2], 0);
 
-    quat.invert(this.#tempQuaternion, this.#rotation);
-    quat.multiply(this.#tempQuaternion, this.#positionQuaternion, this.#tempQuaternion);
-    quat.multiply(this.#tempQuaternion, this.#rotation, this.#tempQuaternion);
-
-    this.#position[0] = this.#tempQuaternion[0];
-    this.#position[1] = this.#tempQuaternion[1];
-    this.#position[2] = this.#tempQuaternion[2];
-
-    this.#updateOrthonormalBasis();
+    rotateWithQuat(this.#position, this.#position, this.#rotation);
+    rotateWithQuat(this.#up, this.#up, this.#rotation);
+    rotateWithQuat(this.#front, this.#front, this.#rotation);
+    rotateWithQuat(this.#right, this.#right, this.#rotation);
     return this.#position;
   }
 
@@ -178,7 +200,7 @@ export class ArcballCamera implements Camera {
 
       angularVelocity: theta / duration,
 
-      axis: new Float32Array(axis),
+      rotationAxis: new Float32Array(axis),
       currentAngle: 0,
       targetAngle: theta,
     } satisfies AnimationAnimating;
@@ -199,8 +221,37 @@ export class ArcballCamera implements Camera {
   };
 
   #onMouseMove = (ev: MouseEvent) => {
-    if (this.#animation?.type === "animating") {
-      return;
+    switch (this.#animation?.type) {
+      case undefined:
+        return;
+      case "animating":
+        return;
+      case "rotating": {
+        this.#calculateNormalizedCoordinates(this.#animation.currentNormalizedCoordinates, ev);
+        vec3.cross(
+          this.#animation.rotationAxis,
+          this.#animation.lastNormalizedCoordinates,
+          this.#animation.currentNormalizedCoordinates,
+        );
+
+        // TODO: need to negate the angle for some reason
+        const angle = -Math.acos(
+          Math.min(
+            vec3.dot(this.#animation.lastNormalizedCoordinates, this.#animation.currentNormalizedCoordinates),
+            1.0,
+          ),
+        );
+
+        console.log(`${(angle * 180) / Math.PI}`);
+        this.rotate(this.#animation.rotationAxis, angle);
+        vec3.copy(this.#animation.lastNormalizedCoordinates, this.#animation.currentNormalizedCoordinates);
+        break;
+      }
+      case "panning": {
+        break;
+      }
+      default:
+        this.#animation satisfies never;
     }
   };
 
@@ -217,7 +268,13 @@ export class ArcballCamera implements Camera {
     } else {
       this.#animation = {
         type: "rotating",
+
+        lastNormalizedCoordinates: vec3.create(),
+        currentNormalizedCoordinates: vec3.create(),
+        rotationAxis: vec3.create(),
       };
+
+      this.#calculateNormalizedCoordinates(this.#animation.lastNormalizedCoordinates, ev);
     }
   };
 
@@ -235,14 +292,23 @@ export class ArcballCamera implements Camera {
     }
   };
 
-  // Helper functions
-  #updateOrthonormalBasis(): void {
-    // TODO: Implment https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process
-    vec3.subtract(this.#front, this.#target, this.#position);
-    vec3.normalize(this.#front, this.#front);
-    vec3.cross(this.#right, this.#front, this.#up); // Need to be careful when front is in the same direction as up.
-    vec3.normalize(this.#right, this.#right);
-    vec3.cross(this.#up, this.#right, this.#front);
-    vec3.normalize(this.#up, this.#up);
+  #calculateNormalizedCoordinates(out: vec3, ev: MouseEvent): void {
+    // The sphere radius is the largest sphere that fits in the screen.
+    const sphereRadius = (Math.min(this.#canvas.width, this.#canvas.height) - 1) / 2;
+    const centerX = Math.round(this.#canvas.width / 2 - 0.99);
+    const centerY = Math.round(this.#canvas.height / 2 - 0.99);
+
+    out[0] = (ev.offsetX - centerX) / sphereRadius; // now converted to roughly -1, 1
+    out[1] = -(ev.offsetY - centerY) / sphereRadius;
+
+    const r2 = out[0] * out[0] + out[1] * out[1];
+    if (r2 <= 0.5) {
+      // Assume the sphere has a radius of 1 in normalized coordinates
+      out[2] = Math.sqrt(1 - r2);
+    } else {
+      out[2] = 0.5 / Math.sqrt(r2);
+    }
+
+    vec3.normalize(out, out); // TODO: is this actually needed?
   }
 }

@@ -1,4 +1,3 @@
-import { ArcballCamera } from "./camera/ArcballCamera.js";
 import type { Camera } from "./camera/types.js";
 import { STLModel } from "./stl/model.js";
 import type { STL } from "./stl/parser.js";
@@ -63,7 +62,7 @@ export class Renderer {
     const theta2 = this.#camera.fov() / 2;
     const z = (h / Math.tan(theta2)) * 2;
 
-    this.#camera.moveTo(new Float32Array([0, 0, z]));
+    this.#camera.moveTo(new Float32Array([0, 0, z]), new Float32Array([0, 1, 0]));
 
     this.#stlModel = new STLModel(this.#gl, stl);
   }
@@ -72,7 +71,7 @@ export class Renderer {
     this.#camera.update(dt);
   }
 
-  #render(dt: number): void {
+  #render(_dt: number): void {
     const aspectRatio = this.#updateCanvasSize();
     this.#gl.clear(this.#gl.COLOR_BUFFER_BIT | this.#gl.DEPTH_BUFFER_BIT);
 
