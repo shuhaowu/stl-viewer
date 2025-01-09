@@ -40,6 +40,8 @@ type Animation = AnimationAnimating | AnimationRotating | AnimationPanning;
 const temporaryQuat1 = quat.create();
 const temporaryPositionQuat = quat.create();
 
+const kNegativeZFrontVector: vec3 = new Float32Array([0.0, 0.0, -1.0]);
+
 function rotateWithQuat(out: vec3, p: vec3, q: quat): vec3 {
   quat.invert(temporaryQuat1, q);
   quat.set(temporaryPositionQuat, p[0], p[1], p[2], 0);
@@ -233,6 +235,7 @@ export class ArcballCamera implements Camera {
           this.#animation.lastNormalizedCoordinates,
           this.#animation.currentNormalizedCoordinates,
         );
+        vec3.normalize(this.#animation.rotationAxis, this.#animation.rotationAxis);
 
         // TODO: need to negate the angle for some reason
         const angle = -Math.acos(
@@ -242,7 +245,6 @@ export class ArcballCamera implements Camera {
           ),
         );
 
-        console.log(`${(angle * 180) / Math.PI}`);
         this.rotate(this.#animation.rotationAxis, angle);
         vec3.copy(this.#animation.lastNormalizedCoordinates, this.#animation.currentNormalizedCoordinates);
         break;
@@ -293,6 +295,10 @@ export class ArcballCamera implements Camera {
   };
 
   #calculateNormalizedCoordinates(out: vec3, ev: MouseEvent): void {
+    if (this.#animation?.type !== "rotating") {
+      throw new Error("programming error: this method is only allowed during rotating");
+    }
+
     // The sphere radius is the largest sphere that fits in the screen.
     const sphereRadius = (Math.min(this.#canvas.width, this.#canvas.height) - 1) / 2;
     const centerX = Math.round(this.#canvas.width / 2 - 0.99);
@@ -308,6 +314,32 @@ export class ArcballCamera implements Camera {
     } else {
       out[2] = 0.5 / Math.sqrt(r2);
     }
+
+    // Right now out is in "normalized screen space". I use quotes because it's
+    // not the actual screen space necessarily. We are normalizing it with
+    // respect to a sphere of 1. This space is viewed with a camera with the
+    // view vector of [0, 0, -1]. However, the current camera is actually
+    // viewing in the direction of this.#front. So instead of getting the
+    // semi-sphere in the direction of [0, 0, -1], we need to rotate the
+    // "normalized screen space".
+
+    // The reason this is different from most other Arcball implementation is
+    // because other arcball implementations are moving the object instead of
+    // moving the camera.
+
+    // The initial view vector is always [0, 0, -1]
+    // The current camera view vector is at this.#front
+    // Crossing these two vectors gives a rotation axis.
+    // Solving for the dot product gives the rotation angle
+    // Then we can rotate the out vector to the right place.
+
+    vec3.cross(this.#animation.rotationAxis, this.#front, kNegativeZFrontVector);
+    const angle = -Math.acos(Math.min(vec3.dot(this.#front, kNegativeZFrontVector), 1.0));
+
+    quat.setAxisAngle(this.#rotation, this.#animation.rotationAxis, angle);
+    rotateWithQuat(out, out, this.#rotation);
+
+    console.log(out);
 
     vec3.normalize(out, out); // TODO: is this actually needed?
   }
