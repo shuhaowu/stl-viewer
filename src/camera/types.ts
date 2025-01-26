@@ -11,6 +11,4 @@ export interface Camera {
   fov(): number;
 
   update(dt: number): void;
-
-  moveTo(position: ReadonlyVec3, up: ReadonlyVec3): ReadonlyVec3;
 }

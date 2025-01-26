@@ -1,7 +1,7 @@
 import { mat4, quat, type ReadonlyMat4, type ReadonlyVec3, vec3 } from "gl-matrix";
 import type { Camera } from "./types.js";
 
-export type ArcballCameraOptions = {
+export type ArcballCameraOptions2 = {
   position: vec3;
   target: vec3;
   up: vec3;
