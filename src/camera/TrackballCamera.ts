@@ -23,12 +23,6 @@ type InteractionRotating = {
   initialCameraRotation: quat;
 };
 
-type InteractionPanning = {
-  type: "panning";
-  lastMouseX: number;
-  lastMouseY: number;
-};
-
 const interactionRotating: InteractionRotating = {
   type: "rotating",
 
@@ -39,15 +33,47 @@ const interactionRotating: InteractionRotating = {
   initialCameraRotation: quat.create(),
 };
 
+type InteractionPanning = {
+  type: "panning";
+  lastMouseX: number;
+  lastMouseY: number;
+};
+
 const interactionPanning: InteractionPanning = {
   type: "panning",
   lastMouseX: 0,
   lastMouseY: 0,
 };
 
+type InteractionPanningVelocity = {
+  type: "panningVelocity";
+
+  direction: vec3;
+  speed: number;
+};
+
+const interactionPanningVelocity: InteractionPanningVelocity = {
+  type: "panningVelocity",
+  direction: vec3.create(),
+  speed: 0,
+};
+
+type InteractionRotatingVelocity = {
+  type: "rotatingVelocity";
+
+  speed: number;
+  axis: vec3;
+};
+
+const interactionRotatingVelocity: InteractionRotatingVelocity = {
+  type: "rotatingVelocity",
+  speed: 0,
+  axis: vec3.create(),
+};
+
 const positiveZ: vec3 = new Float32Array([0, 0, 1]);
 
-type Interaction = InteractionRotating | InteractionPanning;
+type Interaction = InteractionRotating | InteractionPanning | InteractionRotatingVelocity | InteractionPanningVelocity;
 
 export class TrackballCamera implements Camera {
   #canvas: HTMLCanvasElement;
@@ -98,8 +124,21 @@ export class TrackballCamera implements Camera {
     return this.#fov;
   }
 
-  update(_dt: number): void {
-    // No update?
+  update(dt: number): void {
+    switch (this.#interaction?.type) {
+      case "rotatingVelocity": {
+        const angle = (this.#interaction.speed * dt) / 1000;
+        this.rotate(this.#interaction.axis, angle);
+        break;
+      }
+
+      case "panningVelocity": {
+        const distance = (this.#interaction.speed * dt) / 1000;
+        vec3.scaleAndAdd(this.#center, this.#center, this.#interaction.direction, distance);
+        vec3.scaleAndAdd(this.#position, this.#position, this.#interaction.direction, distance);
+        break;
+      }
+    }
   }
 
   resetView(position: ReadonlyVec3, target: ReadonlyVec3, up: ReadonlyVec3): void {
@@ -215,9 +254,77 @@ export class TrackballCamera implements Camera {
     this.#canvas.removeEventListener("mouseleave", this.#onMouseUp);
   }
 
-  #onKeyDown = (ev: KeyboardEvent) => {};
+  #onKeyDown = (ev: KeyboardEvent) => {
+    if (this.#interaction !== undefined) {
+      return;
+    }
 
-  #onKeyUp = (ev: KeyboardEvent) => {};
+    switch (ev.code) {
+      case "KeyW": {
+        this.#interaction = interactionRotatingVelocity;
+        vec3.copy(this.#interaction.axis, this.#right);
+        this.#interaction.speed = Math.PI / 2;
+
+        break;
+      }
+
+      case "KeyA": {
+        this.#interaction = interactionRotatingVelocity;
+        vec3.copy(this.#interaction.axis, this.#up);
+        this.#interaction.speed = Math.PI / 2;
+        break;
+      }
+
+      case "KeyS": {
+        this.#interaction = interactionRotatingVelocity;
+        vec3.copy(this.#interaction.axis, this.#right);
+        this.#interaction.speed = -Math.PI / 2;
+        break;
+      }
+
+      case "KeyD": {
+        this.#interaction = interactionRotatingVelocity;
+        vec3.copy(this.#interaction.axis, this.#up);
+        this.#interaction.speed = -Math.PI / 2;
+        break;
+      }
+
+      case "ArrowUp": {
+        this.#interaction = interactionPanningVelocity;
+        vec3.copy(this.#interaction.direction, this.#up);
+        this.#interaction.speed = 10;
+        console.log(this.#up);
+        break;
+      }
+
+      case "ArrowLeft": {
+        this.#interaction = interactionPanningVelocity;
+        vec3.copy(this.#interaction.direction, this.#right);
+        this.#interaction.speed = -10;
+        break;
+      }
+
+      case "ArrowDown": {
+        this.#interaction = interactionPanningVelocity;
+        vec3.copy(this.#interaction.direction, this.#up);
+        this.#interaction.speed = -10;
+        console.log(this.#up);
+        break;
+      }
+
+      case "ArrowRight": {
+        this.#interaction = interactionPanningVelocity;
+        vec3.copy(this.#interaction.direction, this.#right);
+        this.#interaction.speed = 10;
+      }
+    }
+  };
+
+  #onKeyUp = (ev: KeyboardEvent) => {
+    if (this.#interaction?.type === "rotatingVelocity" || this.#interaction?.type === "panningVelocity") {
+      this.#interaction = undefined;
+    }
+  };
 
   #onBlurAndFocus = () => {
     this.#interaction = undefined;
@@ -232,8 +339,6 @@ export class TrackballCamera implements Camera {
           this.#interaction.currentNormalizedCoordinates,
           this.#interaction.initialCameraRotation,
         );
-
-        console.log(this.#interaction.currentNormalizedCoordinates);
 
         vec3.cross(
           this.#interaction.rotationAxis,
@@ -268,11 +373,8 @@ export class TrackballCamera implements Camera {
         break;
       }
 
-      case undefined:
-        return;
-
       default:
-        this.#interaction satisfies never;
+        return;
     }
   };
 

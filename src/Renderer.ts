@@ -65,7 +65,7 @@ export class Renderer {
     this.#camera.resetView(new Float32Array([0, 0, z]), new Float32Array([0, 0, 0]), new Float32Array([0, 1, 0]));
 
     this.#stlModel = new STLModel(this.#gl, stl, {
-      position: new Float32Array([-stl.boundingBox.center[0], -stl.boundingBox.center[1], -stl.boundingBox.center[2]]),
+      // position: new Float32Array([-stl.boundingBox.center[0], -stl.boundingBox.center[1], -stl.boundingBox.center[2]]),
     });
   }
 
