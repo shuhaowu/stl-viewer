@@ -17,6 +17,8 @@ type InteractionRotating = {
 
   lastMouseX: number;
   lastMouseY: number;
+
+  mode: "x" | "y";
 };
 
 type InteractionPanning = {
@@ -30,6 +32,7 @@ const interactionRotating: InteractionRotating = {
   type: "rotating",
   lastMouseX: 0,
   lastMouseY: 0,
+  mode: "x",
 };
 
 const interactionPanning: InteractionPanning = {
@@ -117,8 +120,6 @@ export class SphericalCamera implements Camera {
     // Calculate the coordinate in spherical coordinate space.
     cart2sph(this.#coord, x, y, z);
 
-    console.log(this.#coord, x, y, z);
-
     // Now calculate the directional vectors
     vec3.subtract(this.#front, this.#position, this.#center);
     vec3.normalize(this.#front, this.#front);
@@ -153,10 +154,8 @@ export class SphericalCamera implements Camera {
 
   #recalculate(): void {
     // Recalculate the cartesian position
-    console.log(this.#coord);
     sph2cart(this.#position, this.#coord[0], this.#coord[1], this.#coord[2]);
     vec3.add(this.#position, this.#center, this.#position);
-    console.log(this.#position);
 
     // Recalculate directional vectors
     vec3.subtract(this.#front, this.#position, this.#center);
@@ -215,8 +214,8 @@ export class SphericalCamera implements Camera {
         const dx = ev.offsetX - this.#interaction.lastMouseX;
         const dy = this.#interaction.lastMouseY - ev.offsetY;
 
-        const dtheta = -(dx / this.#canvas.width) * Math.PI;
-        const dphi = -(dy / this.#canvas.height) * Math.PI;
+        const dtheta = this.#interaction.mode === "x" ? -(dx / this.#canvas.width) * Math.PI : 0;
+        const dphi = this.#interaction.mode === "y" ? -(dy / this.#canvas.height) * Math.PI : 0;
 
         this.rotate(dtheta, dphi);
 
@@ -254,6 +253,7 @@ export class SphericalCamera implements Camera {
       this.#interaction = interactionRotating;
       this.#interaction.lastMouseX = ev.offsetX;
       this.#interaction.lastMouseY = ev.offsetY;
+      this.#interaction.mode = ev.ctrlKey ? "y" : "x";
     }
   };
 
