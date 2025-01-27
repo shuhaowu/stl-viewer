@@ -1,6 +1,6 @@
 import { Renderer } from "./Renderer.js";
 import teapotStlUrl from "./assets/teapot.stl?url";
-import { SphericalCamera } from "./camera/SphericalCamera.js";
+import { TrackballCamera } from "./camera/TrackballCamera.js";
 import { STL } from "./stl/parser.js";
 import { managedAnimationFrameMetrics } from "./utils/ManagedAnimationFrames.js";
 
@@ -28,11 +28,15 @@ async function main() {
 
   const stlProm = STL.loadFromUrl(teapotStlUrl);
 
-  const camera = new SphericalCamera(canvas, {
+  const camera = new TrackballCamera(canvas, {
     position: new Float32Array([0, 0, 4]),
     target: new Float32Array([0, 0, 0]),
     up: new Float32Array([0, 1, 0]),
     fov: (45 * Math.PI) / 180,
+    sensitivity: {
+      pan: 0.02,
+      dolly: 0.01,
+    },
   });
 
   camera.attachEventHandlers();
