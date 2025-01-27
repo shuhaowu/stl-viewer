@@ -62,7 +62,7 @@ export class Renderer {
     const theta2 = this.#camera.fov() / 2;
     const z = (h / Math.tan(theta2)) * 2;
 
-    this.#camera.moveTo(new Float32Array([0, 0, z]), new Float32Array([0, 1, 0]));
+    this.#camera.resetView(new Float32Array([0, 0, z]), new Float32Array([0, 0, 0]), new Float32Array([0, 1, 0]));
 
     this.#stlModel = new STLModel(this.#gl, stl);
   }

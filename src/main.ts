@@ -1,6 +1,6 @@
 import { Renderer } from "./Renderer.js";
 import teapotStlUrl from "./assets/teapot.stl?url";
-import { ArcballCamera } from "./camera/ArcballCamera.js";
+import { SphericalCamera } from "./camera/SphericalCamera.js";
 import { STL } from "./stl/parser.js";
 import { managedAnimationFrameMetrics } from "./utils/ManagedAnimationFrames.js";
 
@@ -28,7 +28,7 @@ async function main() {
 
   const stlProm = STL.loadFromUrl(teapotStlUrl);
 
-  const camera = new ArcballCamera(canvas, {
+  const camera = new SphericalCamera(canvas, {
     position: new Float32Array([0, 0, 4]),
     target: new Float32Array([0, 0, 0]),
     up: new Float32Array([0, 1, 0]),

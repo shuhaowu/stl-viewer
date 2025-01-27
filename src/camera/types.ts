@@ -12,5 +12,5 @@ export interface Camera {
 
   update(dt: number): void;
 
-  moveTo(position: ReadonlyVec3, up: ReadonlyVec3): ReadonlyVec3;
+  resetView(position: ReadonlyVec3, target: ReadonlyVec3, up: ReadonlyVec3): void;
 }
